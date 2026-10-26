@@ -66,6 +66,7 @@ header.top .lede{max-width:56ch;color:var(--muted);margin-top:8px}
 .step header p{max-width:62ch;color:var(--muted)}
 .q{display:grid;gap:10px;padding:18px 0;border-top:1px solid var(--line)}
 .q:first-of-type{border-top:0;padding-top:0}
+.step > .q:first-of-type{border-top:0;padding-top:0}
 .q label.title{font-weight:600}
 .q .hint{font-size:13px;color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -182,6 +183,15 @@ footer.note{margin-top:28px;font-size:12px;color:var(--muted);max-width:80ch}
 <!-- 1 ACADEMICS -->
 <section class="step active" data-step="0">
   <header><div class="eyebrow">1 of 6</div><h2>Academics</h2><p>Grades and scores set the Reach / Match / Likely bands. They don't decide fit, so be honest here and generous in the later sections.</p></header>
+  <div class="q">
+    <label class="title" for="sname">About you</label>
+    <div class="row">
+      <div class="field"><span>Student name</span><input type="text" id="sname" name="sname" placeholder="First Last" style="width:200px"></div>
+      <div class="field"><span>Email (optional)</span><input type="text" id="semail" name="semail" placeholder="you@example.com" style="width:220px"></div>
+      <div class="field"><span>High school grad year</span><input type="number" id="sgrad" name="sgrad" min="2026" max="2035" placeholder="2028"></div>
+    </div>
+    <div class="hint">Used to label your PDF report and saved answers file. Nothing is sent anywhere.</div>
+  </div>
   <div class="q">
     <label class="title" for="gpa">Unweighted GPA (4.0 scale)</label>
     <div class="row">
@@ -456,11 +466,6 @@ footer.note{margin-top:28px;font-size:12px;color:var(--muted);max-width:80ch}
       <p class="muted" id="profNote" style="margin-top:6px"></p>
       <div class="stats" id="profStats"></div>
       <div class="save">
-        <div class="row">
-          <div class="field"><span>Student name</span><input type="text" id="sname" name="sname" placeholder="First Last" style="width:180px"></div>
-          <div class="field"><span>Email (optional)</span><input type="text" id="semail" name="semail" placeholder="you@example.com" style="width:200px"></div>
-          <div class="field"><span>Grad year</span><input type="number" id="sgrad" name="sgrad" min="2026" max="2035" placeholder="2028"></div>
-        </div>
         <div class="row">
           <button type="button" class="btn primary" id="pdfBtn">Download PDF report</button>
           <button type="button" class="btn" id="saveBtn">Save answers to a file</button>
@@ -981,7 +986,7 @@ function downloadPDF(){
 function loadSample(){
   Object.assign(A.single,{rigor:"3",rank:"top10",testplan:"maybe",sportlevel:"d3",svchours:"2",faith:"either",learn:"mix",distance:"any",type:"either",cost:"aid"});
   A.multi.sports=new Set(["soccer","track"]);A.multi.acts=new Set(["robotics","journalism","outdoor"]);A.multi.svctype=new Set(["tutor","env"]);A.multi.majors=new Set(["cs","env"]);A.multi.wants=new Set(["research","abroad"]);A.multi.regions=new Set();A.multi.size=new Set(["S","M"]);A.multi.setting=new Set(["town","suburban"]);
-  A.num={gpa:3.78,wgpa:4.25,sat:1390,act:null};A.range={spirit:1,outdoors:4,actweight:3,greek:1,svcweight:2,rigorweight:3,diversity:2};A.text={home:"CA",spike:"robotics team captain"};
+  A.num={gpa:3.78,wgpa:4.25,sat:1390,act:null};A.range={spirit:1,outdoors:4,actweight:3,greek:1,svcweight:2,rigorweight:3,diversity:2};A.text={home:"CA",spike:"robotics team captain",sname:"Sample Student"};A.num.sgrad=2028;
   hydrate();toast("Sample student loaded: 3.78 GPA, 1390 SAT, CS + environment, D3 soccer");finish();
 }
 
