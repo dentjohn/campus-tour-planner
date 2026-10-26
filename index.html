@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Campus Tour Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a six-step questionnaire on the left rail of attention, then a results board
+   with three admissions columns (Reach / Match / Likely) and a sticky tour-list drawer. */
+:root{
+  --bg:#f4f6f2; --panel:#ffffff; --fg:#17201b; --muted:#5c6a62; --line:#d6ddd6;
+  --accent:#1f5f3f; --accent-ink:#ffffff; --accent-soft:#e3efe6;
+  --gold:#d99a1e; --gold-soft:#fbefd4;
+  --reach:#b4541d; --reach-soft:#fae7da; --match:#1f5f3f; --match-soft:#e3efe6; --likely:#2b5c9e; --likely-soft:#e1eaf7;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body:"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono:"IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+  --radius:10px; --shadow:0 1px 2px rgba(23,32,27,.06), 0 8px 24px -16px rgba(23,32,27,.25);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121815; --panel:#1b2420; --fg:#e8ede9; --muted:#9fb0a6; --line:#2f3c35;
+  --accent:#6fc294; --accent-ink:#0f1a14; --accent-soft:#1d3328;
+  --gold:#e8b24a; --gold-soft:#3a2d12;
+  --reach:#ef9a63; --reach-soft:#3a2416; --match:#6fc294; --match-soft:#1d3328; --likely:#86aee6; --likely-soft:#1a2a40;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#121815; --panel:#1b2420; --fg:#e8ede9; --muted:#9fb0a6; --line:#2f3c35;
+  --accent:#6fc294; --accent-ink:#0f1a14; --accent-soft:#1d3328;
+  --gold:#e8b24a; --gold-soft:#3a2d12;
+  --reach:#ef9a63; --reach-soft:#3a2416; --match:#6fc294; --match-soft:#1d3328; --likely:#86aee6; --likely-soft:#1a2a40;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6); color-scheme:dark }
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:clamp(28px,4.5vw,44px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:22px;font-weight:700}
+h3{font-size:16px;font-weight:700}
+p{margin:0}
+.muted{color:var(--muted)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+header.top{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between;padding:28px 0 20px;border-bottom:1px solid var(--line)}
+header.top .lede{max-width:56ch;color:var(--muted);margin-top:8px}
+.sample{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:13px;font-weight:500}
+.sample:hover{border-color:var(--accent)}
+
+/* stepper */
+.stepper{display:flex;gap:6px;flex-wrap:wrap;margin:22px 0 14px}
+.stepper button{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:6px 12px;font-size:13px;display:flex;gap:8px;align-items:center}
+.stepper button b{font-family:var(--mono);font-size:11px;font-weight:500;background:var(--bg);border-radius:999px;padding:1px 7px}
+.stepper button.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.stepper button.active b{background:rgba(255,255,255,.22);color:inherit}
+.stepper button.done{color:var(--fg);border-color:var(--accent)}
+.stepper button.done b{background:var(--accent-soft);color:var(--accent)}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:clamp(18px,3vw,32px)}
+.step{display:none}.step.active{display:block}
+.step header{display:flex;flex-direction:column;gap:6px;margin-bottom:22px}
+.step header p{max-width:62ch;color:var(--muted)}
+.q{display:grid;gap:10px;padding:18px 0;border-top:1px solid var(--line)}
+.q:first-of-type{border-top:0;padding-top:0}
+.q label.title{font-weight:600}
+.q .hint{font-size:13px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field span{font-size:13px;color:var(--muted)}
+input[type=number],input[type=text],select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-width:0}
+input[type=number]{width:120px;font-family:var(--mono)}
+select{max-width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:999px;padding:7px 13px;font-size:14px;transition:background .15s,border-color .15s}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip.gold[aria-pressed=true]{background:var(--gold);color:#1a1405;border-color:var(--gold)}
+.scale{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+.scale input[type=range]{width:100%;accent-color:var(--accent)}
+.scale output{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:9ch;text-align:right}
+.nav{display:flex;justify-content:space-between;gap:12px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.btn{border-radius:999px;padding:10px 18px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* results */
+#results{display:none;margin-top:28px}
+#results.show{display:block}
+.profile{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:20px}
+@media (max-width:820px){.profile{grid-template-columns:1fr}}
+.profile .panel{padding:20px 22px}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:10px}
+.stat{display:flex;flex-direction:column}
+.stat b{font-family:var(--mono);font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.balance{display:grid;gap:10px}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}
+.bar i{display:block;height:100%}
+.bar .r{background:var(--reach)}.bar .m{background:var(--match)}.bar .l{background:var(--likely)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:8px 0 14px}
+.toolbar .chips .chip{font-size:13px;padding:5px 11px}
+
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:900px){.board{grid-template-columns:1fr}}
+.col{display:grid;gap:10px;min-width:0}
+.col > h2{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px 6px;border-bottom:3px solid var(--line)}
+.col.reach > h2{border-color:var(--reach)}.col.match > h2{border-color:var(--match)}.col.likely > h2{border-color:var(--likely)}
+.col > h2 small{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--muted)}
+.col .desc{font-size:13px;color:var(--muted);padding:0 4px 4px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 14px 12px;display:grid;gap:8px;min-width:0}
+.card.picked{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold-soft)}
+.card .head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card h3{font-size:17px}
+.card .loc{font-size:13px;color:var(--muted)}
+.fit{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
+.fit b{font-family:var(--mono);font-size:20px;font-weight:500;line-height:1}
+.fit span{font-size:11px;color:var(--muted)}
+.fitbar{height:4px;background:var(--bg);border-radius:2px;overflow:hidden}
+.fitbar i{display:block;height:100%;background:var(--accent)}
+.facts{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);font-family:var(--mono)}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+.tag.hit{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:500}
+.tag.warn{background:var(--reach-soft);border-color:transparent;color:var(--reach)}
+.why{font-size:13px;color:var(--muted)}
+.why b{color:var(--fg);font-weight:600}
+.card .foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:2px}
+.pick{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600}
+.pick[aria-pressed=true]{background:var(--gold);border-color:var(--gold);color:#1a1405}
+.more{justify-self:center;margin-top:4px}
+.empty{padding:20px;border:1px dashed var(--line);border-radius:var(--radius);color:var(--muted);font-size:14px;text-align:center}
+
+/* tour drawer */
+.tour{position:sticky;bottom:0;margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:14px 14px 0 0;box-shadow:0 -10px 30px -18px rgba(0,0,0,.4);padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));z-index:5}
+.tour .bar-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tour .bar-top h2{font-size:18px}
+.tour .count{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.tour .body{display:none;margin-top:14px;display:none;gap:18px;grid-template-columns:1.1fr 1fr}
+.tour.open .body{display:grid}
+@media (max-width:900px){.tour .body{grid-template-columns:1fr}}
+.trip{display:grid;gap:6px;padding:10px 0;border-top:1px solid var(--line)}
+.trip:first-child{border-top:0;padding-top:0}
+.trip h3{font-size:14px;display:flex;justify-content:space-between}
+.trip h3 small{font-family:var(--mono);font-weight:500;color:var(--muted)}
+.trip ul{margin:0;padding-left:18px;font-size:14px}
+.trip li{display:flex;justify-content:space-between;gap:10px;list-style:none;margin-left:-18px}
+.trip li .x{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:0 4px}
+.asklist{margin:0;padding-left:18px;font-size:14px;display:grid;gap:6px}
+.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;font-family:var(--mono)}
+.pill.reach{background:var(--reach-soft);color:var(--reach)}.pill.match{background:var(--match-soft);color:var(--match)}.pill.likely{background:var(--likely-soft);color:var(--likely)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.toast.show{opacity:1}
+.save{display:grid;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+footer.note{margin-top:28px;font-size:12px;color:var(--muted);max-width:80ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="top">
+  <div>
+    <div class="eyebrow">College search · tour planning</div>
+    <h1>Which campuses are worth the drive?</h1>
+    <p class="lede">Answer six short sections about your grades, sports, activities, service and interests. You'll get a Reach / Match / Likely board of schools that fit, and a tour list grouped into trips.</p>
+  </div>
+  <button class="sample" id="loadSample" type="button">Try a sample student</button>
+</header>
+
+<nav class="stepper" id="stepper" aria-label="Sections"></nav>
+
+<form class="panel" id="quiz" autocomplete="off">
+
+<!-- 1 ACADEMICS -->
+<section class="step active" data-step="0">
+  <header><div class="eyebrow">1 of 6</div><h2>Academics</h2><p>Grades and scores set the Reach / Match / Likely bands. They don't decide fit, so be honest here and generous in the later sections.</p></header>
+  <div class="q">
+    <label class="title" for="gpa">Unweighted GPA (4.0 scale)</label>
+    <div class="row">
+      <input type="number" id="gpa" name="gpa" min="0" max="4" step="0.01" placeholder="3.70">
+      <div class="field"><span>Weighted GPA (optional)</span><input type="number" id="wgpa" name="wgpa" min="0" max="6" step="0.01" placeholder="4.20"></div>
+    </div>
+    <div class="hint">If your school doesn't use a 4.0 scale, convert: A ≈ 4.0, B ≈ 3.0, C ≈ 2.0.</div>
+  </div>
+  <div class="q">
+    <label class="title">Course rigor</label>
+    <div class="chips" data-single="rigor">
+      <button type="button" class="chip" data-v="1">Mostly standard</button>
+      <button type="button" class="chip" data-v="2">Some honors</button>
+      <button type="button" class="chip" data-v="3">Several AP / IB / DE</button>
+      <button type="button" class="chip" data-v="4">Most rigorous available</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Class rank (if your school reports it)</label>
+    <div class="chips" data-single="rank">
+      <button type="button" class="chip" data-v="top5">Top 5%</button>
+      <button type="button" class="chip" data-v="top10">Top 10%</button>
+      <button type="button" class="chip" data-v="top25">Top 25%</button>
+      <button type="button" class="chip" data-v="top50">Top half</button>
+      <button type="button" class="chip" data-v="none">Not ranked</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Test scores</label>
+    <div class="row">
+      <div class="field"><span>SAT total (400–1600)</span><input type="number" id="sat" name="sat" min="400" max="1600" step="10" placeholder="1350"></div>
+      <div class="field"><span>ACT composite (1–36)</span><input type="number" id="act" name="act" min="1" max="36" step="1" placeholder="30"></div>
+    </div>
+    <div class="chips" data-single="testplan">
+      <button type="button" class="chip" data-v="submit">I plan to submit scores</button>
+      <button type="button" class="chip" data-v="maybe">Submit only where it helps</button>
+      <button type="button" class="chip" data-v="none">Test-optional everywhere / not testing</button>
+    </div>
+    <div class="hint">Leave both blank if you haven't tested yet; GPA and rigor will carry the estimate.</div>
+  </div>
+</section>
+
+<!-- 2 ATHLETICS -->
+<section class="step" data-step="1">
+  <header><div class="eyebrow">2 of 6</div><h2>Sports</h2><p>Whether you want to compete, cheer, or neither changes which campuses belong on the list.</p></header>
+  <div class="q">
+    <label class="title">Do you want to keep playing in college?</label>
+    <div class="chips" data-single="sportlevel">
+      <button type="button" class="chip" data-v="d1">Yes — aiming to be recruited at D1</button>
+      <button type="button" class="chip" data-v="d2">Yes — D2 or NAIA level</button>
+      <button type="button" class="chip" data-v="d3">Yes — D3 varsity (no athletic scholarships)</button>
+      <button type="button" class="chip" data-v="club">Club or intramural is enough</button>
+      <button type="button" class="chip" data-v="no">Not planning to play</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Sports you play now</label>
+    <div class="chips" data-multi="sports">
+      <button type="button" class="chip" data-v="soccer">Soccer</button><button type="button" class="chip" data-v="basketball">Basketball</button><button type="button" class="chip" data-v="football">Football</button><button type="button" class="chip" data-v="baseball">Baseball / softball</button><button type="button" class="chip" data-v="track">Track / XC</button><button type="button" class="chip" data-v="swim">Swim / dive</button><button type="button" class="chip" data-v="tennis">Tennis</button><button type="button" class="chip" data-v="golf">Golf</button><button type="button" class="chip" data-v="lax">Lacrosse</button><button type="button" class="chip" data-v="volleyball">Volleyball</button><button type="button" class="chip" data-v="rowing">Rowing</button><button type="button" class="chip" data-v="hockey">Hockey</button><button type="button" class="chip" data-v="wrestling">Wrestling</button><button type="button" class="chip" data-v="other">Other</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title" for="spirit">How much do big games and school spirit matter to you?</label>
+    <div class="scale"><input type="range" id="spirit" name="spirit" min="0" max="4" value="2"><output for="spirit">Somewhat</output></div>
+  </div>
+  <div class="q">
+    <label class="title" for="outdoors">Access to mountains, trails, water, skiing?</label>
+    <div class="scale"><input type="range" id="outdoors" name="outdoors" min="0" max="4" value="2"><output for="outdoors">Somewhat</output></div>
+  </div>
+</section>
+
+<!-- 3 ACTIVITIES -->
+<section class="step" data-step="2">
+  <header><div class="eyebrow">3 of 6</div><h2>Activities</h2><p>Pick what you actually spend time on. Schools with a strong scene in those areas score higher.</p></header>
+  <div class="q">
+    <label class="title">Your activities (choose any)</label>
+    <div class="chips" data-multi="acts">
+      <button type="button" class="chip" data-v="music">Band / orchestra / choir</button>
+      <button type="button" class="chip" data-v="theater">Theater / dance</button>
+      <button type="button" class="chip" data-v="visual">Visual art / design / film</button>
+      <button type="button" class="chip" data-v="stugov">Student government</button>
+      <button type="button" class="chip" data-v="debate">Debate / Model UN / mock trial</button>
+      <button type="button" class="chip" data-v="robotics">Robotics / coding / hackathons</button>
+      <button type="button" class="chip" data-v="research">Science fair / research</button>
+      <button type="button" class="chip" data-v="journalism">Newspaper / yearbook / podcast</button>
+      <button type="button" class="chip" data-v="business">Business / DECA / a side hustle</button>
+      <button type="button" class="chip" data-v="cultural">Cultural or faith group</button>
+      <button type="button" class="chip" data-v="outdoor">Outdoors / climbing / ski club</button>
+      <button type="button" class="chip" data-v="esports">Gaming / esports</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Which one is closest to your identity?</label>
+    <div class="hint">Your "spike". Type it or pick one above; this one gets extra weight.</div>
+    <input type="text" id="spike" name="spike" placeholder="e.g. first-chair cellist, robotics team captain, school paper editor" style="max-width:60ch">
+  </div>
+  <div class="q">
+    <label class="title" for="actweight">How important is continuing these in college?</label>
+    <div class="scale"><input type="range" id="actweight" name="actweight" min="0" max="4" value="3"><output for="actweight">Important</output></div>
+  </div>
+  <div class="q">
+    <label class="title" for="greek">Greek life and a big social / party scene?</label>
+    <div class="scale"><input type="range" id="greek" name="greek" min="0" max="4" value="2"><output for="greek">Somewhat</output></div>
+  </div>
+</section>
+
+<!-- 4 SERVICE -->
+<section class="step" data-step="3">
+  <header><div class="eyebrow">4 of 6</div><h2>Service</h2><p>Some campuses build service into the culture (required community engagement, service-learning courses, strong faith traditions). Tell us if that matters.</p></header>
+  <div class="q">
+    <label class="title">Volunteer hours in a typical year</label>
+    <div class="chips" data-single="svchours">
+      <button type="button" class="chip" data-v="0">Under 20</button>
+      <button type="button" class="chip" data-v="1">20–60</button>
+      <button type="button" class="chip" data-v="2">60–150</button>
+      <button type="button" class="chip" data-v="3">150+</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Kind of service</label>
+    <div class="chips" data-multi="svctype">
+      <button type="button" class="chip" data-v="tutor">Tutoring / mentoring</button>
+      <button type="button" class="chip" data-v="env">Environment / conservation</button>
+      <button type="button" class="chip" data-v="health">Hospital / health</button>
+      <button type="button" class="chip" data-v="faith">Faith-based</button>
+      <button type="button" class="chip" data-v="organize">Advocacy / organizing</button>
+      <button type="button" class="chip" data-v="food">Food bank / shelter</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title" for="svcweight">How much should the college's service culture count?</label>
+    <div class="scale"><input type="range" id="svcweight" name="svcweight" min="0" max="4" value="2"><output for="svcweight">Somewhat</output></div>
+  </div>
+  <div class="q">
+    <label class="title">Religious affiliation of the college</label>
+    <div class="chips" data-single="faith">
+      <button type="button" class="chip" data-v="want">I'd like a faith-affiliated school</button>
+      <button type="button" class="chip" data-v="either">Doesn't matter</button>
+      <button type="button" class="chip" data-v="avoid">Prefer secular</button>
+    </div>
+  </div>
+</section>
+
+<!-- 5 INTERESTS -->
+<section class="step" data-step="4">
+  <header><div class="eyebrow">5 of 6</div><h2>Interests &amp; majors</h2><p>Undecided is a real answer. If you do have a direction, schools known for it move up.</p></header>
+  <div class="q">
+    <label class="title">Fields you might study (choose up to 3)</label>
+    <div class="chips" data-multi="majors" data-max="3">
+      <button type="button" class="chip" data-v="eng">Engineering</button>
+      <button type="button" class="chip" data-v="cs">Computer science / data</button>
+      <button type="button" class="chip" data-v="bus">Business / finance</button>
+      <button type="button" class="chip" data-v="premed">Pre-med / biology</button>
+      <button type="button" class="chip" data-v="nursing">Nursing / health professions</button>
+      <button type="button" class="chip" data-v="arts">Visual arts / design / film</button>
+      <button type="button" class="chip" data-v="perf">Music / theater</button>
+      <button type="button" class="chip" data-v="hum">English / history / philosophy</button>
+      <button type="button" class="chip" data-v="poli">Politics / law / international</button>
+      <button type="button" class="chip" data-v="socsci">Psychology / economics / sociology</button>
+      <button type="button" class="chip" data-v="env">Environment / earth science</button>
+      <button type="button" class="chip" data-v="comm">Communications / journalism</button>
+      <button type="button" class="chip" data-v="edu">Education</button>
+      <button type="button" class="chip" data-v="arch">Architecture</button>
+      <button type="button" class="chip gold" data-v="undecided">Undecided</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">How do you learn best?</label>
+    <div class="chips" data-single="learn">
+      <button type="button" class="chip" data-v="seminar">Small discussion classes where professors know me</button>
+      <button type="button" class="chip" data-v="mix">A mix</button>
+      <button type="button" class="chip" data-v="lecture">Big lectures are fine; I like lots of options</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Things you want available</label>
+    <div class="chips" data-multi="wants">
+      <button type="button" class="chip" data-v="research">Undergrad research with faculty</button>
+      <button type="button" class="chip" data-v="coop">Co-ops / internships built in</button>
+      <button type="button" class="chip" data-v="abroad">Study abroad</button>
+      <button type="button" class="chip" data-v="honors">Honors college</button>
+      <button type="button" class="chip" data-v="preprof">Strong pre-med / pre-law advising</button>
+      <button type="button" class="chip" data-v="entrepreneur">Startup / entrepreneurship scene</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title" for="rigorweight">How intense do you want the academic culture?</label>
+    <div class="scale"><input type="range" id="rigorweight" name="rigorweight" min="0" max="4" value="2"><output for="rigorweight">Somewhat</output></div>
+    <div class="hint">High = you want to be pushed by very selective peers. Low = balance matters more.</div>
+  </div>
+</section>
+
+<!-- 6 FIT -->
+<section class="step" data-step="5">
+  <header><div class="eyebrow">6 of 6</div><h2>Campus fit &amp; logistics</h2><p>Size, setting, distance and cost knock more schools off a tour list than anything else.</p></header>
+  <div class="q">
+    <label class="title">Home state</label>
+    <select id="home" name="home"></select>
+    <div class="hint">Used for distance and to show in-state tuition at public universities.</div>
+  </div>
+  <div class="q">
+    <label class="title">Distance from home</label>
+    <div class="chips" data-single="distance">
+      <button type="button" class="chip" data-v="close">Close — same region, drivable</button>
+      <button type="button" class="chip" data-v="any">Anywhere</button>
+      <button type="button" class="chip" data-v="far">Somewhere new — a different part of the country</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Regions you'd consider (leave blank for all)</label>
+    <div class="chips" data-multi="regions">
+      <button type="button" class="chip" data-v="NE">Northeast</button>
+      <button type="button" class="chip" data-v="S">South / Mid-Atlantic</button>
+      <button type="button" class="chip" data-v="MW">Midwest</button>
+      <button type="button" class="chip" data-v="SW">Texas / Southwest</button>
+      <button type="button" class="chip" data-v="W">West / Mountain / Pacific</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">School size</label>
+    <div class="chips" data-multi="size">
+      <button type="button" class="chip" data-v="S">Small (under 5,000)</button>
+      <button type="button" class="chip" data-v="M">Medium (5,000–15,000)</button>
+      <button type="button" class="chip" data-v="L">Large (15,000+)</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Setting</label>
+    <div class="chips" data-multi="setting">
+      <button type="button" class="chip" data-v="urban">Big city</button>
+      <button type="button" class="chip" data-v="suburban">Suburban</button>
+      <button type="button" class="chip" data-v="town">College town</button>
+      <button type="button" class="chip" data-v="rural">Rural / remote</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Public or private</label>
+    <div class="chips" data-single="type">
+      <button type="button" class="chip" data-v="pub">Public</button>
+      <button type="button" class="chip" data-v="priv">Private</button>
+      <button type="button" class="chip" data-v="either">Either</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title">Cost</label>
+    <div class="chips" data-single="cost">
+      <button type="button" class="chip" data-v="tight">Sticker price matters a lot — favor in-state and merit aid</button>
+      <button type="button" class="chip" data-v="aid">We'll qualify for need-based aid — favor schools that meet full need</button>
+      <button type="button" class="chip" data-v="open">Cost isn't the deciding factor</button>
+    </div>
+  </div>
+  <div class="q">
+    <label class="title" for="diversity">How important are a diverse student body and city culture?</label>
+    <div class="scale"><input type="range" id="diversity" name="diversity" min="0" max="4" value="2"><output for="diversity">Somewhat</output></div>
+  </div>
+</section>
+
+<div class="nav">
+  <button type="button" class="btn ghost" id="back">← Back</button>
+  <div class="row">
+    <button type="button" class="btn ghost" id="reset">Clear answers</button>
+    <button type="button" class="btn primary" id="next">Next →</button>
+  </div>
+</div>
+</form>
+
+<section id="results" aria-live="polite">
+  <div class="profile">
+    <div class="panel">
+      <div class="eyebrow">Your profile</div>
+      <h2 id="profTitle" style="margin-top:6px">Results</h2>
+      <p class="muted" id="profNote" style="margin-top:6px"></p>
+      <div class="stats" id="profStats"></div>
+      <div class="save">
+        <div class="row">
+          <div class="field"><span>Student name</span><input type="text" id="sname" name="sname" placeholder="First Last" style="width:180px"></div>
+          <div class="field"><span>Email (optional)</span><input type="text" id="semail" name="semail" placeholder="you@example.com" style="width:200px"></div>
+          <div class="field"><span>Grad year</span><input type="number" id="sgrad" name="sgrad" min="2026" max="2035" placeholder="2028"></div>
+        </div>
+        <div class="row">
+          <button type="button" class="btn primary" id="pdfBtn">Download PDF report</button>
+          <button type="button" class="btn" id="saveBtn">Save answers to a file</button>
+          <label class="btn" for="loadFile" style="cursor:pointer">Load saved answers<input type="file" id="loadFile" accept=".json,application/json" hidden></label>
+          <span class="muted" id="saveStatus" style="font-size:13px">Answers also stay saved in this browser automatically.</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel balance">
+      <div class="eyebrow">Tour balance</div>
+      <p class="muted" style="font-size:14px">Counselors usually suggest touring about <b>2–3 reach, 3–4 match, 2 likely</b>. Pick schools below and this bar tracks it.</p>
+      <div class="bar" id="balBar"><i class="r" style="width:0"></i><i class="m" style="width:0"></i><i class="l" style="width:0"></i></div>
+      <div class="legend"><span><i style="background:var(--reach)"></i><span id="balR">0 reach</span></span><span><i style="background:var(--match)"></i><span id="balM">0 match</span></span><span><i style="background:var(--likely)"></i><span id="balL">0 likely</span></span></div>
+      <p class="muted" id="balMsg" style="font-size:13px"></p>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="chips" id="filters">
+      <button type="button" class="chip" data-f="all" aria-pressed="true">All schools</button>
+      <button type="button" class="chip" data-f="d1" aria-pressed="false">D1 only</button>
+      <button type="button" class="chip" data-f="fb30" aria-pressed="false">D1 football · admits ≤50%</button>
+      <button type="button" class="chip" data-f="small" aria-pressed="false">Small only</button>
+      <button type="button" class="chip" data-f="public" aria-pressed="false">Public only</button>
+      <button type="button" class="chip" data-f="picked" aria-pressed="false">My picks</button>
+    </div>
+    <button type="button" class="btn" id="editAnswers">Edit answers</button>
+  </div>
+
+  <div class="board">
+    <div class="col reach"><h2>Reach <small id="nReach"></small></h2><p class="desc">Your numbers sit below the middle 50%, or admit rates are under 20%. Tour one or two you'd love.</p><div id="colReach"></div></div>
+    <div class="col match"><h2>Match <small id="nMatch"></small></h2><p class="desc">You're in the typical admitted range. This is where most of your touring time should go.</p><div id="colMatch"></div></div>
+    <div class="col likely"><h2>Likely <small id="nLikely"></small></h2><p class="desc">You're above the typical range and admit rates are high. Tour at least two so you have a real choice you're excited about.</p><div id="colLikely"></div></div>
+  </div>
+
+  <div class="tour" id="tour">
+    <div class="bar-top">
+      <div><h2>Tour list</h2><div class="count" id="tourCount">No schools picked yet</div></div>
+      <div class="row"><button type="button" class="btn" id="copyTour">Copy list</button><button type="button" class="btn primary" id="toggleTour">Open planner</button></div>
+    </div>
+    <div class="body">
+      <div><div class="eyebrow" style="margin-bottom:8px">Trips, grouped by region</div><div id="trips"></div></div>
+      <div><div class="eyebrow" style="margin-bottom:8px">Questions to ask on every tour</div><ul class="asklist" id="asks"></ul></div>
+    </div>
+  </div>
+
+  <footer class="note">Admissions figures (middle-50% SAT, average GPA, admit rate, sticker cost) are approximate, drawn from recent Common Data Set publications, and rounded. Several public universities are test-blind, so scores aren't used for them. Treat the bands as a starting point and confirm numbers on each school's admissions page before applying.</footer>
+</section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// ---------- site config (edit these) ----------
+// orgName appears at the top of the PDF report.
+const CONFIG={orgName:"Campus Tour Planner"};
+// ---------- data ----------
+// [name, state, size S/M/L, setting, pub/priv, division, sat25, sat75 (0 = test-blind/no data), avg GPA, admit %, cost (private: sticker; public: [in-state, out-of-state]) in $k, majors, vibes]
+const C=[
+["U.S. Naval Academy","MD","S","town","pub","D1",1230,1450,3.9,9,[0,0],["eng","cs","poli","socsci"],["fbs","spirit","service","honors"]],
+["U.S. Military Academy (West Point)","NY","S","rural","pub","D1",1210,1420,3.9,11,[0,0],["eng","cs","poli","socsci"],["fbs","spirit","service","outdoors"]],
+["U.S. Air Force Academy","CO","S","suburban","pub","D1",1250,1440,3.9,13,[0,0],["eng","cs","poli","socsci"],["fbs","spirit","service","outdoors"]],
+["Stanford University","CA","M","suburban","priv","D1",1500,1570,3.95,4,86,["eng","cs","bus","premed","hum","socsci","poli"],["fbs","research","spirit","techy","entrepreneur","need","abroad"]],
+["MIT","MA","S","urban","priv","D3",1520,1580,3.96,5,86,["eng","cs","premed","arch","env"],["research","techy","quirky","entrepreneur","need"]],
+["Harvard University","MA","M","urban","priv","D1",1500,1580,3.95,4,86,["hum","socsci","poli","premed","cs","bus"],["fcs","research","need","abroad","arts"]],
+["Princeton University","NJ","M","suburban","priv","D1",1510,1570,3.95,4,84,["eng","hum","socsci","poli","cs"],["fcs","research","need","seminar"]],
+["Yale University","CT","M","urban","priv","D1",1500,1570,3.95,4,88,["hum","arts","perf","poli","socsci","premed"],["fcs","arts","research","need","seminar"]],
+["Columbia University","NY","M","urban","priv","D1",1500,1570,3.95,4,90,["hum","eng","poli","comm","socsci"],["fcs","research","need","city","diverse"]],
+["University of Pennsylvania","PA","M","urban","priv","D1",1500,1570,3.95,6,89,["bus","eng","nursing","premed","socsci"],["fcs","research","preprof","need","city"]],
+["Brown University","RI","M","urban","priv","D1",1500,1570,3.95,5,90,["hum","cs","premed","socsci","arts"],["fcs","quirky","need","research","seminar"]],
+["Dartmouth College","NH","S","rural","priv","D1",1500,1570,3.95,6,90,["socsci","eng","hum","env"],["fcs","outdoors","greek","need","seminar","abroad"]],
+["Cornell University","NY","L","town","priv","D1",1480,1560,3.95,8,90,["eng","arch","bus","premed","env","cs"],["fcs","research","greek","need","outdoors"]],
+["Duke University","NC","M","suburban","priv","D1",1510,1570,3.95,6,88,["premed","eng","poli","socsci","bus"],["fbs","spirit","research","greek","need","preprof"]],
+["University of Chicago","IL","M","urban","priv","D3",1510,1570,3.95,5,90,["socsci","hum","premed","cs","poli"],["quirky","research","seminar","need","city"]],
+["Northwestern University","IL","M","suburban","priv","D1",1500,1560,3.95,7,90,["comm","perf","eng","socsci","premed"],["fbs","arts","research","spirit","need","preprof"]],
+["Johns Hopkins University","MD","M","urban","priv","D3",1530,1570,3.95,7,88,["premed","eng","poli","research"],["research","preprof","need"]],
+["Vanderbilt University","TN","M","urban","priv","D1",1500,1570,3.95,6,88,["premed","edu","socsci","eng","perf"],["fbs","spirit","greek","need","city"]],
+["Rice University","TX","S","urban","priv","D1",1500,1570,3.95,8,80,["eng","cs","premed","arch","perf"],["fbs","research","quirky","need","city","diverse"]],
+["Washington University in St. Louis","MO","M","suburban","priv","D3",1500,1570,3.95,12,88,["premed","arts","bus","eng","socsci"],["research","preprof","need","arts"]],
+["Emory University","GA","M","urban","priv","D3",1480,1550,3.9,11,86,["premed","bus","nursing","socsci","hum"],["preprof","research","need","city","service"]],
+["Georgetown University","DC","M","urban","priv","D1",1450,1550,3.9,13,88,["poli","bus","hum","socsci"],["fcs","faith","city","preprof","abroad","service"]],
+["Notre Dame","IN","M","suburban","priv","D1",1430,1540,3.9,12,86,["bus","eng","poli","hum","premed"],["fbs","faith","spirit","service","need","abroad"]],
+["University of Southern California","CA","L","urban","priv","D1",1450,1540,3.9,10,92,["arts","bus","eng","comm","perf","cs"],["fbs","spirit","arts","city","greek","entrepreneur"]],
+["Carnegie Mellon University","PA","M","urban","priv","D3",1510,1570,3.9,11,86,["cs","eng","arts","perf","bus"],["techy","research","arts","city"]],
+["Tufts University","MA","M","suburban","priv","D3",1480,1550,3.9,10,90,["poli","premed","eng","socsci","hum"],["service","abroad","need","research"]],
+["Boston College","MA","M","suburban","priv","D1",1450,1530,3.9,15,88,["bus","nursing","hum","socsci","edu"],["fbs","faith","spirit","service","need"]],
+["Boston University","MA","L","urban","priv","D1",1400,1520,3.8,11,90,["comm","premed","bus","eng","perf","poli"],["city","diverse","abroad","research"]],
+["Northeastern University","MA","L","urban","priv","D1",1450,1540,3.9,6,88,["bus","cs","eng","premed","comm"],["coop","city","entrepreneur","abroad"]],
+["New York University","NY","L","urban","priv","D3",1470,1550,3.8,8,94,["arts","perf","bus","comm","hum","socsci"],["city","arts","diverse","abroad"]],
+["University of Michigan","MI","L","town","pub","D1",1380,1540,3.9,18,[36,80],["eng","bus","premed","cs","socsci","perf"],["fbs","spirit","research","greek","honors"]],
+["UC Berkeley","CA","L","urban","pub","D1",0,0,3.9,11,[46,80],["eng","cs","bus","env","socsci","hum"],["fbs","research","spirit","diverse","entrepreneur"]],
+["UCLA","CA","L","urban","pub","D1",0,0,3.9,9,[42,76],["premed","arts","perf","socsci","eng","cs"],["fbs","spirit","city","diverse","research","arts"]],
+["UC San Diego","CA","L","suburban","pub","D1",0,0,3.85,25,[42,76],["cs","eng","premed","env","socsci"],["research","techy","outdoors"]],
+["UC Davis","CA","L","town","pub","D1",0,0,3.8,42,[42,76],["env","premed","eng","socsci"],["fcs","outdoors","research","service"]],
+["UC Santa Barbara","CA","L","suburban","pub","D1",0,0,3.85,33,[42,76],["env","eng","socsci","cs","hum"],["outdoors","research","greek"]],
+["Cal Poly San Luis Obispo","CA","L","town","pub","D1",0,0,3.9,30,[32,56],["eng","arch","bus","env","cs"],["fcs","techy","outdoors","coop"]],
+["San Diego State University","CA","L","urban","pub","D1",0,0,3.8,38,[32,52],["bus","nursing","comm","socsci"],["fbs","spirit","greek","city","diverse"]],
+["University of Washington","WA","L","urban","pub","D1",1250,1480,3.8,43,[33,66],["cs","eng","premed","nursing","env"],["fbs","research","city","outdoors","diverse"]],
+["University of Oregon","OR","L","town","pub","D1",1120,1340,3.6,86,[32,60],["comm","bus","arch","socsci","env"],["fbs","spirit","outdoors","greek","arts"]],
+["University of Colorado Boulder","CO","L","town","pub","D1",1180,1390,3.7,81,[36,66],["eng","env","bus","comm","cs"],["fbs","outdoors","spirit","research","greek"]],
+["Colorado College","CO","S","town","priv","D3",1400,1520,3.9,16,86,["env","socsci","hum","arts"],["quirky","outdoors","seminar","need"]],
+["Colorado School of Mines","CO","S","town","pub","D2",1340,1470,3.9,57,[42,66],["eng","cs","env"],["techy","outdoors","coop"]],
+["University of Utah","UT","L","urban","pub","D1",1180,1400,3.7,87,[28,52],["cs","eng","premed","bus","arts"],["fbs","outdoors","research","honors"]],
+["Montana State University","MT","L","town","pub","D1",1080,1300,3.5,80,[24,46],["eng","env","nursing","arch"],["fcs","outdoors","honors"]],
+["Brigham Young University","UT","L","town","priv","D1",1270,1440,3.9,67,22,["bus","eng","cs","edu","nursing"],["fbs","faith","spirit","outdoors","service"]],
+["Gonzaga University","WA","M","urban","priv","D1",1220,1400,3.8,75,78,["bus","eng","nursing","edu"],["faith","spirit","service","outdoors"]],
+["Santa Clara University","CA","M","suburban","priv","D1",1360,1480,3.8,45,88,["bus","eng","cs","socsci"],["faith","entrepreneur","service","techy"]],
+["Loyola Marymount University","CA","M","urban","priv","D1",1300,1440,3.8,41,86,["arts","bus","comm","socsci"],["faith","arts","city","service"]],
+["University of San Diego","CA","M","urban","priv","D1",1280,1420,3.9,52,84,["bus","nursing","eng","socsci"],["fcs","faith","service","outdoors"]],
+["Pepperdine University","CA","S","suburban","priv","D1",1300,1450,3.8,48,88,["bus","comm","socsci","hum"],["faith","outdoors","abroad"]],
+["Chapman University","CA","M","suburban","priv","D3",1300,1420,3.8,53,86,["arts","comm","bus","perf"],["arts","entrepreneur"]],
+["Pomona College","CA","S","suburban","priv","D3",1490,1560,3.95,7,88,["hum","socsci","cs","premed","env"],["seminar","need","research","quirky"]],
+["Claremont McKenna College","CA","S","suburban","priv","D3",1450,1540,3.9,10,90,["socsci","poli","bus"],["preprof","seminar","need","entrepreneur"]],
+["Harvey Mudd College","CA","S","suburban","priv","D3",1500,1570,3.95,13,92,["eng","cs","premed"],["techy","quirky","research","seminar"]],
+["Occidental College","CA","S","urban","priv","D3",1380,1500,3.8,40,88,["poli","socsci","hum","env"],["city","seminar","diverse","abroad"]],
+["Reed College","OR","S","urban","priv","D3",1400,1520,3.9,35,86,["hum","socsci","premed","cs"],["quirky","seminar","research"]],
+["Whitman College","WA","S","town","priv","D3",1300,1460,3.8,56,78,["env","socsci","hum","premed"],["outdoors","seminar","service"]],
+["Lewis & Clark College","OR","S","urban","priv","D3",1260,1420,3.7,80,76,["env","poli","socsci","hum"],["outdoors","abroad","seminar"]],
+["University of Puget Sound","WA","S","urban","priv","D3",1240,1410,3.6,85,78,["premed","socsci","perf","env"],["outdoors","seminar","arts"]],
+["University of Denver","CO","M","urban","priv","D1",1240,1400,3.75,72,80,["bus","poli","socsci","premed"],["outdoors","abroad","city"]],
+["University of Arizona","AZ","L","urban","pub","D1",1100,1330,3.5,87,[30,56],["env","eng","premed","bus","nursing"],["fbs","research","spirit","honors","outdoors"]],
+["Arizona State University","AZ","L","urban","pub","D1",1100,1330,3.5,90,[32,56],["bus","eng","cs","comm","nursing"],["fbs","honors","spirit","entrepreneur","city"]],
+["University of Texas at Austin","TX","L","urban","pub","D1",1230,1500,3.85,29,[30,60],["bus","eng","cs","comm","arch","socsci"],["fbs","spirit","city","research","honors"]],
+["Texas A&M University","TX","L","town","pub","D1",1180,1390,3.8,63,[32,60],["eng","bus","env","nursing"],["fbs","spirit","service","honors"]],
+["Southern Methodist University","TX","M","urban","priv","D1",1350,1490,3.7,54,90,["bus","comm","eng","perf"],["fbs","greek","city","spirit"]],
+["Texas Christian University","TX","M","urban","priv","D1",1190,1370,3.7,42,80,["bus","nursing","comm","edu"],["fbs","spirit","greek","faith"]],
+["Baylor University","TX","L","urban","priv","D1",1200,1390,3.8,51,78,["premed","bus","nursing","edu"],["fbs","faith","spirit","service"]],
+["Trinity University","TX","S","urban","priv","D3",1320,1470,3.8,32,78,["bus","socsci","eng","hum"],["seminar","city","research"]],
+["University of Oklahoma","OK","L","town","pub","D1",1130,1330,3.7,73,[26,50],["eng","bus","comm","perf"],["fbs","spirit","honors","greek"]],
+["University of Virginia","VA","L","town","pub","D1",1420,1530,3.95,17,[38,82],["bus","poli","premed","eng","hum"],["fbs","spirit","research","greek","need"]],
+["Virginia Tech","VA","L","town","pub","D1",1230,1420,3.9,57,[34,60],["eng","arch","cs","bus","env"],["fbs","spirit","techy","coop"]],
+["William & Mary","VA","M","town","pub","D1",1380,1510,3.9,33,[42,74],["hum","poli","bus","socsci"],["fcs","research","seminar","service"]],
+["James Madison University","VA","L","town","pub","D1",1150,1300,3.7,78,[30,50],["bus","nursing","edu","comm"],["fbs","spirit","service"]],
+["University of Maryland","MD","L","suburban","pub","D1",1370,1520,3.9,44,[32,62],["cs","eng","bus","comm","poli"],["fbs","research","spirit","honors","diverse"]],
+["George Washington University","DC","M","urban","priv","D1",1350,1490,3.8,44,88,["poli","comm","bus","socsci"],["city","preprof","abroad","diverse"]],
+["American University","DC","M","urban","priv","D1",1300,1440,3.7,40,84,["poli","comm","socsci","bus"],["city","service","abroad","diverse"]],
+["Howard University","DC","M","urban","priv","D1",1110,1280,3.6,35,60,["comm","premed","bus","poli","nursing"],["fcs","hbcu","city","service","spirit","diverse"]],
+["UNC Chapel Hill","NC","L","town","pub","D1",1370,1510,3.9,17,[25,62],["comm","premed","bus","poli","socsci"],["fbs","spirit","research","need","service"]],
+["NC State University","NC","L","urban","pub","D1",1300,1450,3.9,40,[26,56],["eng","cs","env","arch","bus"],["fbs","techy","coop","spirit"]],
+["Duke-adjacent? no","",0],
+["Davidson College","NC","S","town","priv","D1",1400,1520,3.9,15,86,["socsci","premed","hum","poli"],["fcs","seminar","need","service","spirit"]],
+["Wake Forest University","NC","M","suburban","priv","D1",1400,1510,3.85,22,90,["bus","premed","socsci","comm"],["fbs","greek","preprof","service","spirit"]],
+["Elon University","NC","M","suburban","priv","D1",1200,1360,3.7,73,62,["comm","bus","edu","socsci"],["fcs","abroad","service","greek"]],
+["Clemson University","SC","L","town","pub","D1",1240,1410,3.9,38,[32,58],["eng","bus","env","nursing"],["fbs","spirit","greek","honors"]],
+["University of South Carolina","SC","L","urban","pub","D1",1180,1360,3.8,64,[30,58],["bus","nursing","comm","edu"],["fbs","honors","spirit","greek"]],
+["College of Charleston","SC","M","urban","pub","D1",1130,1300,3.9,77,[30,52],["bus","comm","env","hum"],["city","arts","service"]],
+["Furman University","SC","S","town","priv","D1",1270,1430,3.8,66,80,["premed","bus","perf","socsci"],["fcs","seminar","service","research"]],
+["University of Georgia","GA","L","town","pub","D1",1250,1430,3.9,37,[28,52],["bus","comm","premed","env","edu"],["fbs","spirit","greek","honors","research"]],
+["Georgia Tech","GA","L","urban","pub","D1",1400,1540,3.95,16,[30,52],["eng","cs","bus","arch"],["fbs","techy","research","coop","city"]],
+["University of Central Florida","FL","L","urban","pub","D1",1230,1400,3.9,41,[23,40],["eng","cs","bus","nursing","comm"],["fbs","spirit","honors","city","coop"]],
+["University of South Florida","FL","L","urban","pub","D1",1210,1380,3.9,44,[21,40],["premed","bus","nursing","eng","cs"],["fbs","research","city","diverse","honors"]],
+["University of Richmond","VA","S","suburban","priv","D1",1380,1500,3.8,24,88,["bus","poli","socsci","hum"],["fcs","greek","preprof","need","seminar"]],
+["Lafayette College","PA","S","town","priv","D1",1340,1480,3.8,30,86,["eng","bus","socsci","hum"],["fcs","greek","seminar","research"]],
+["University of Florida","FL","L","town","pub","D1",1310,1470,3.95,24,[22,46],["eng","bus","premed","comm","cs"],["fbs","spirit","research","honors","greek"]],
+["Florida State University","FL","L","town","pub","D1",1250,1400,3.9,25,[22,42],["bus","comm","perf","premed","edu"],["fbs","spirit","arts","greek"]],
+["University of Miami","FL","M","suburban","priv","D1",1340,1480,3.8,19,88,["bus","premed","comm","env","perf"],["fbs","city","diverse","research","greek"]],
+["University of Tampa","FL","M","urban","priv","D2",1150,1300,3.6,45,52,["bus","nursing","comm","env"],["city","abroad"]],
+["University of Alabama","AL","L","town","pub","D1",1080,1320,3.8,80,[28,54],["bus","eng","nursing","comm"],["fbs","spirit","greek","honors"]],
+["Auburn University","AL","L","town","pub","D1",1200,1350,3.9,44,[30,54],["eng","bus","arch","env"],["fbs","spirit","greek"]],
+["Tulane University","LA","M","urban","priv","D1",1400,1510,3.8,15,88,["bus","premed","arch","socsci","env"],["fbs","service","city","greek","research"]],
+["University of Tennessee","TN","L","town","pub","D1",1190,1360,3.9,46,[30,50],["bus","eng","nursing","comm"],["fbs","spirit","greek","honors"]],
+["Belmont University","TN","M","urban","priv","D1",1140,1330,3.8,90,62,["perf","bus","comm","nursing"],["arts","faith","city","entrepreneur"]],
+["Rhodes College","TN","S","urban","priv","D3",1300,1450,3.9,59,74,["premed","socsci","hum","poli"],["seminar","service","city"]],
+["Sewanee: The University of the South","TN","S","rural","priv","D3",1240,1420,3.7,56,78,["hum","env","socsci","premed"],["outdoors","seminar","faith"]],
+["University of Kentucky","KY","L","urban","pub","D1",1070,1290,3.7,94,[28,50],["nursing","bus","eng","edu"],["fbs","spirit","honors"]],
+["Centre College","KY","S","town","priv","D3",1200,1360,3.8,65,72,["socsci","premed","hum","bus"],["seminar","abroad","service"]],
+["Ohio State University","OH","L","urban","pub","D1",1300,1460,3.8,51,[30,56],["bus","eng","premed","comm","edu"],["fbs","spirit","research","honors","greek"]],
+["Miami University (Ohio)","OH","L","town","pub","D1",1240,1400,3.8,90,[36,60],["bus","edu","comm","socsci"],["fbs","greek","seminar","abroad"]],
+["Ohio University","OH","L","town","pub","D1",1080,1270,3.6,88,[28,46],["comm","edu","bus","nursing"],["fbs","spirit","arts"]],
+["University of Dayton","OH","M","urban","priv","D1",1170,1340,3.7,77,70,["eng","bus","edu","premed"],["fcs","faith","service","spirit"]],
+["Case Western Reserve University","OH","M","urban","priv","D3",1420,1530,3.9,27,84,["eng","premed","nursing","cs","research"],["research","preprof","coop","city"]],
+["Oberlin College","OH","S","town","priv","D3",1370,1500,3.8,35,88,["perf","hum","env","socsci","arts"],["arts","quirky","seminar","service"]],
+["Kenyon College","OH","S","rural","priv","D3",1360,1480,3.85,29,86,["hum","socsci","perf","env"],["seminar","arts","quirky"]],
+["Denison University","OH","S","rural","priv","D3",1310,1450,3.8,19,80,["socsci","bus","premed","hum"],["seminar","service","greek"]],
+["College of Wooster","OH","S","town","priv","D3",1200,1400,3.7,60,74,["socsci","premed","hum","env"],["research","seminar"]],
+["Purdue University","IN","L","town","pub","D1",1210,1450,3.7,50,[23,46],["eng","cs","bus","env","premed"],["fbs","techy","research","coop","spirit"]],
+["Indiana University Bloomington","IN","L","town","pub","D1",1170,1380,3.7,80,[28,56],["bus","perf","comm","socsci","cs"],["fbs","arts","spirit","greek","honors"]],
+["Rose-Hulman Institute of Technology","IN","S","town","priv","D3",1300,1460,3.9,74,78,["eng","cs"],["techy","seminar"]],
+["University of Illinois Urbana-Champaign","IL","L","town","pub","D1",1350,1520,3.8,43,[36,62],["eng","cs","bus","socsci"],["fbs","research","techy","spirit","greek"]],
+["University of Wisconsin–Madison","WI","L","urban","pub","D1",1370,1500,3.9,43,[30,60],["eng","bus","premed","env","cs","socsci"],["fbs","spirit","research","city","outdoors"]],
+["Marquette University","WI","M","urban","priv","D1",1190,1360,3.7,87,70,["nursing","bus","eng","comm"],["faith","service","city","spirit"]],
+["University of Minnesota","MN","L","urban","pub","D1",1270,1450,3.75,75,[32,54],["eng","bus","premed","cs","env"],["fbs","research","city","diverse"]],
+["Carleton College","MN","S","town","priv","D3",1430,1540,3.9,22,88,["socsci","cs","hum","env","premed"],["quirky","seminar","need","research"]],
+["Macalester College","MN","S","urban","priv","D3",1380,1510,3.85,28,86,["poli","socsci","hum","env"],["city","abroad","diverse","seminar","service"]],
+["St. Olaf College","MN","S","town","priv","D3",1240,1420,3.8,50,74,["perf","premed","hum","env"],["arts","faith","abroad","seminar"]],
+["Grinnell College","IA","S","rural","priv","D3",1400,1530,3.9,15,86,["socsci","hum","cs","premed"],["quirky","seminar","need","service"]],
+["University of Iowa","IA","L","town","pub","D1",1140,1340,3.7,85,[26,50],["hum","premed","nursing","bus","comm"],["fbs","arts","spirit","research"]],
+["Iowa State University","IA","L","town","pub","D1",1100,1320,3.6,90,[26,46],["eng","env","bus","arch"],["fbs","spirit","coop"]],
+["University of Nebraska–Lincoln","NE","L","urban","pub","D1",1090,1300,3.7,79,[26,44],["bus","eng","env","edu"],["fbs","spirit","honors"]],
+["Creighton University","NE","M","urban","priv","D1",1200,1370,3.9,75,72,["premed","nursing","bus","socsci"],["faith","preprof","service"]],
+["University of Kansas","KS","L","town","pub","D1",1090,1300,3.6,88,[28,50],["bus","eng","comm","arch"],["fbs","spirit","honors"]],
+["Saint Louis University","MO","M","urban","priv","D1",1210,1400,3.9,85,70,["premed","nursing","bus","eng"],["faith","preprof","service","city"]],
+["Michigan State University","MI","L","town","pub","D1",1120,1320,3.7,84,[32,60],["edu","bus","comm","env","premed"],["fbs","spirit","research","greek"]],
+["Williams College","MA","S","rural","priv","D3",1470,1560,3.95,8,88,["hum","socsci","arts","premed"],["seminar","need","outdoors","arts"]],
+["Amherst College","MA","S","town","priv","D3",1470,1550,3.95,9,90,["hum","socsci","premed","poli"],["seminar","need","diverse"]],
+["Wellesley-adjacent? no","",0],
+["Brandeis University","MA","M","suburban","priv","D3",1400,1530,3.8,35,88,["premed","socsci","hum","bus"],["research","preprof","diverse"]],
+["Babson College","MA","S","suburban","priv","D3",1370,1500,3.8,24,86,["bus"],["entrepreneur","abroad","diverse"]],
+["Bentley University","MA","S","suburban","priv","D2",1270,1420,3.7,55,84,["bus"],["preprof","coop"]],
+["Worcester Polytechnic Institute","MA","S","town","priv","D3",1350,1490,3.9,55,84,["eng","cs","premed"],["techy","coop","abroad"]],
+["College of the Holy Cross","MA","S","urban","priv","D1",1340,1480,3.8,21,86,["hum","socsci","premed","poli"],["fcs","faith","seminar","service"]],
+["Emerson College","MA","S","urban","priv","D3",1300,1440,3.7,42,82,["comm","arts","perf"],["arts","city","quirky"]],
+["UMass Amherst","MA","L","town","pub","D1",1270,1440,3.9,58,[36,60],["cs","eng","bus","nursing","env"],["fbs","research","spirit","outdoors"]],
+["Bowdoin College","ME","S","town","priv","D3",1430,1530,3.95,7,86,["socsci","env","hum","premed"],["outdoors","need","seminar","service"]],
+["Bates College","ME","S","town","priv","D3",1380,1510,3.9,13,86,["socsci","hum","env","premed"],["outdoors","seminar","service"]],
+["Middlebury College","VT","S","rural","priv","D3",1420,1530,3.9,10,88,["env","poli","hum","socsci"],["outdoors","abroad","need","seminar"]],
+["University of Vermont","VT","M","town","pub","D1",1210,1400,3.7,65,[36,62],["env","nursing","premed","bus"],["outdoors","service","research"]],
+["University of Connecticut","CT","L","town","pub","D1",1240,1420,3.8,54,[38,64],["nursing","bus","eng","premed"],["fbs","spirit","research","honors"]],
+["Wesleyan University","CT","S","town","priv","D3",1420,1540,3.9,16,90,["arts","hum","socsci","env"],["arts","quirky","need","seminar"]],
+["Vassar College","NY","S","suburban","priv","D3",1430,1530,3.9,18,88,["hum","arts","socsci","perf"],["arts","seminar","need","quirky"]],
+["Hamilton College","NY","S","rural","priv","D3",1440,1530,3.9,12,88,["hum","socsci","poli","premed"],["seminar","need","outdoors"]],
+["Colgate University","NY","S","rural","priv","D1",1400,1510,3.8,12,88,["socsci","hum","poli","premed"],["fcs","greek","outdoors","need","seminar"]],
+["Skidmore College","NY","S","town","priv","D3",1320,1460,3.7,30,86,["arts","bus","socsci","perf"],["arts","seminar","quirky"]],
+["University of Rochester","NY","M","suburban","priv","D3",1400,1520,3.8,36,88,["premed","perf","eng","socsci"],["research","arts","preprof"]],
+["Rensselaer Polytechnic Institute","NY","M","urban","priv","D3",1360,1510,3.8,58,86,["eng","cs","arch"],["techy","research","coop"]],
+["Syracuse University","NY","L","urban","priv","D1",1250,1420,3.7,42,88,["comm","arch","bus","perf"],["fbs","spirit","arts","greek"]],
+["Ithaca College","NY","M","town","priv","D3",1200,1360,3.6,78,74,["comm","perf","nursing","bus"],["arts","outdoors"]],
+["Binghamton University (SUNY)","NY","L","suburban","pub","D1",1340,1460,3.8,40,[28,46],["bus","premed","eng","cs","nursing"],["research","diverse"]],
+["Rutgers University–New Brunswick","NJ","L","urban","pub","D1",1250,1450,3.8,65,[34,54],["bus","eng","premed","cs","comm"],["fbs","diverse","research","spirit"]],
+["Swarthmore College","PA","S","suburban","priv","D3",1480,1560,3.95,7,88,["eng","hum","socsci","cs"],["seminar","need","quirky","service"]],
+["Lehigh University","PA","M","town","priv","D1",1350,1480,3.8,29,86,["eng","bus","cs"],["fcs","greek","preprof","coop"]],
+["Bucknell University","PA","S","rural","priv","D1",1300,1450,3.7,31,88,["eng","bus","socsci","hum"],["fcs","greek","seminar"]],
+["Villanova University","PA","M","suburban","priv","D1",1410,1500,3.9,21,86,["bus","eng","nursing","socsci"],["fcs","faith","spirit","service","preprof"]],
+["Penn State University Park","PA","L","town","pub","D1",1200,1390,3.7,55,[38,60],["eng","bus","comm","env","edu"],["fbs","spirit","greek","research","honors"]],
+["University of Pittsburgh","PA","L","urban","pub","D1",1300,1460,3.9,50,[38,58],["premed","nursing","eng","cs","socsci"],["fbs","research","preprof","city","honors"]],
+["Drexel University","PA","L","urban","priv","D1",1230,1400,3.6,78,80,["eng","bus","nursing","arts","cs"],["coop","city","techy"]],
+["Gettysburg College","PA","S","town","priv","D3",1300,1440,3.7,56,84,["socsci","hum","premed","poli"],["seminar","greek","service"]],
+["Dickinson College","PA","S","town","priv","D3",1310,1450,3.8,42,84,["poli","env","hum","socsci"],["abroad","seminar","service"]],
+["Muhlenberg College","PA","S","suburban","priv","D3",1260,1420,3.7,70,78,["perf","premed","socsci","bus"],["arts","seminar"]],
+["Rhode Island School of Design","RI","S","urban","priv","none",1350,1510,3.8,17,84,["arts","arch"],["arts","city","quirky"]],
+["Savannah College of Art and Design","GA","M","urban","priv","none",0,0,3.5,70,66,["arts","arch","comm"],["arts","city"]],
+["Spelman-adjacent? no","",0],
+["Morehouse College","GA","S","urban","priv","D2",1050,1210,3.4,50,52,["bus","socsci","premed","poli"],["hbcu","service","city","spirit"]],
+["Embry-Riddle Aeronautical University","FL","M","town","priv","D2",1190,1360,3.8,65,62,["eng","bus"],["techy","coop"]],
+["Grand Valley State University","MI","L","suburban","pub","D2",1060,1250,3.5,92,[26,40],["nursing","bus","edu","premed"],["service","honors"]],
+["Quinnipiac University","CT","M","suburban","priv","D1",1150,1300,3.5,77,78,["nursing","bus","comm","premed"],["preprof"]],
+["Hope College","MI","S","town","priv","D3",1170,1340,3.8,90,58,["premed","nursing","edu","perf"],["faith","service","research"]],
+["Seattle University","WA","M","urban","priv","D1",1220,1400,3.7,80,78,["bus","nursing","cs","poli"],["faith","city","service","diverse"]],
+["University of Portland","OR","S","urban","priv","D1",1220,1390,3.8,90,76,["nursing","eng","bus","edu"],["faith","service","outdoors"]],
+["Boise State University","ID","L","urban","pub","D1",1030,1250,3.5,83,[24,44],["bus","nursing","eng","comm"],["fbs","spirit","outdoors","honors"]],
+["Cal State Long Beach","CA","L","urban","pub","D1",0,0,3.6,40,[28,44],["bus","nursing","eng","arts","edu"],["city","diverse","arts"]],
+].filter(r=>r.length>5);
+
+const REGION={NE:"CT ME MA NH RI VT NY NJ PA".split(" "),S:"DE MD DC VA WV NC SC GA FL KY TN AL MS LA AR".split(" "),MW:"OH MI IN IL WI MN IA MO KS NE ND SD".split(" "),SW:"TX OK NM AZ".split(" "),W:"CA OR WA NV UT CO ID MT WY HI AK".split(" ")};
+const regionOf=st=>Object.keys(REGION).find(k=>REGION[k].includes(st))||"";
+const REGION_NAME={NE:"Northeast",S:"South / Mid-Atlantic",MW:"Midwest",SW:"Texas / Southwest",W:"West"};
+const STATES="AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" ");
+const MAJOR_NAME={eng:"engineering",cs:"CS / data",bus:"business",premed:"pre-med / bio",nursing:"nursing",arts:"art & design",perf:"music & theater",hum:"humanities",poli:"politics & law",socsci:"social sciences",env:"environment",comm:"communications",edu:"education",arch:"architecture"};
+const VIBE_NAME={research:"research",spirit:"school spirit",techy:"tech culture",entrepreneur:"startups",need:"meets full need",abroad:"study abroad",quirky:"quirky",seminar:"small classes",arts:"arts scene",city:"city life",diverse:"diverse",preprof:"pre-professional",faith:"faith-affiliated",service:"service culture",coop:"co-ops",greek:"Greek life",outdoors:"outdoors",honors:"honors college",hbcu:"HBCU"};
+const ACT2SAT=[,,,,,,,,,,,590,630,670,710,740,780,820,860,900,940,980,1020,1050,1090,1130,1170,1210,1250,1290,1330,1370,1410,1450,1490,1540,1590];
+const SCALE=["Not important","A little","Somewhat","Important","Essential"];
+
+// ---------- state ----------
+const A={single:{},multi:{},num:{},range:{},text:{}};
+let picks=new Set(), filter="all", step=0, expanded={};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const STEPS=["Academics","Sports","Activities","Service","Interests","Fit"];
+
+function save(){try{localStorage.setItem("ctp",JSON.stringify({A:{single:A.single,multi:Object.fromEntries(Object.entries(A.multi).map(([k,v])=>[k,[...v]])),num:A.num,range:A.range,text:A.text},picks:[...picks],step}))}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem("ctp")||"null");if(!s)return;Object.assign(A.single,s.A.single);for(const k in s.A.multi)A.multi[k]=new Set(s.A.multi[k]);Object.assign(A.num,s.A.num);Object.assign(A.range,s.A.range);Object.assign(A.text,s.A.text);picks=new Set(s.picks||[]);step=s.step||0}catch(e){}}
+
+// ---------- form wiring ----------
+function initForm(){
+  const sel=$("#home");sel.innerHTML='<option value="">Choose…</option>'+STATES.map(s=>`<option value="${s}">${s}</option>`).join("");
+  $$("[data-single]").forEach(g=>{const k=g.dataset.single;g.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{A.single[k]=A.single[k]===b.dataset.v?null:b.dataset.v;paint();save()}))});
+  $$("[data-multi]").forEach(g=>{const k=g.dataset.multi,max=+g.dataset.max||99;A.multi[k]=A.multi[k]||new Set();g.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{const s=A.multi[k];
+    if(b.dataset.v==="undecided"){s.clear();s.add("undecided")}else{s.delete("undecided");if(s.has(b.dataset.v))s.delete(b.dataset.v);else if(s.size<max)s.add(b.dataset.v);else{toast(`Pick up to ${max}`);return}}paint();save()}))});
+  $$("input[type=number]").forEach(i=>i.addEventListener("input",()=>{A.num[i.id]=i.value===""?null:+i.value;save()}));
+  $$("input[type=text],select").forEach(i=>i.addEventListener("input",()=>{A.text[i.id]=i.value;save()}));
+  $$("input[type=range]").forEach(i=>{i.addEventListener("input",()=>{A.range[i.id]=+i.value;i.nextElementSibling.textContent=SCALE[i.value];save()})});
+  const st=$("#stepper");st.innerHTML=STEPS.map((s,i)=>`<button type="button" data-i="${i}"><b>${i+1}</b>${s}</button>`).join("");
+  st.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>go(+b.dataset.i)));
+  $("#next").addEventListener("click",()=>{if(step<5)go(step+1);else finish()});
+  $("#back").addEventListener("click",()=>go(Math.max(0,step-1)));
+  $("#reset").addEventListener("click",()=>{A.single={};for(const k in A.multi)A.multi[k].clear();A.num={};A.range={};A.text={};picks.clear();$$("input").forEach(i=>{if(i.type==="range"){i.value=i.defaultValue;i.nextElementSibling.textContent=SCALE[i.value]}else i.value=""});$("#home").value="";paint();$("#results").classList.remove("show");go(0);save()});
+  $("#editAnswers").addEventListener("click",()=>{$("#quiz").scrollIntoView({behavior:"smooth"})});
+  $("#loadSample").addEventListener("click",loadSample);
+  $("#filters").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;filter=b.dataset.f;$$("#filters .chip").forEach(c=>c.setAttribute("aria-pressed",c===b));render()});
+  $("#toggleTour").addEventListener("click",()=>{const t=$("#tour");t.classList.toggle("open");$("#toggleTour").textContent=t.classList.contains("open")?"Close planner":"Open planner"});
+  $("#copyTour").addEventListener("click",copyTour);
+  $("#saveBtn").addEventListener("click",saveFile);
+  $("#loadFile").addEventListener("change",loadFile);
+  $("#pdfBtn").addEventListener("click",downloadPDF);
+}
+function paint(){
+  $$("[data-single]").forEach(g=>g.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",A.single[g.dataset.single]===b.dataset.v)));
+  $$("[data-multi]").forEach(g=>g.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",!!(A.multi[g.dataset.multi]&&A.multi[g.dataset.multi].has(b.dataset.v)))));
+  $$("#stepper button").forEach((b,i)=>{b.classList.toggle("active",i===step);b.classList.toggle("done",i<step||stepDone(i))});
+}
+function stepDone(i){return[[A.num.gpa!=null],[A.single.sportlevel],[A.multi.acts&&A.multi.acts.size],[A.single.svchours],[A.multi.majors&&A.multi.majors.size],[A.text.home]][i].every(Boolean)}
+function hydrate(){for(const k in A.num){const el=document.getElementById(k);if(el&&A.num[k]!=null)el.value=A.num[k]}for(const k in A.text){const el=document.getElementById(k);if(el)el.value=A.text[k]||""}for(const k in A.range){const el=document.getElementById(k);if(el){el.value=A.range[k];el.nextElementSibling.textContent=SCALE[A.range[k]]}}paint()}
+function go(i){step=i;$$(".step").forEach(s=>s.classList.toggle("active",+s.dataset.step===i));$("#back").disabled=i===0;$("#next").textContent=i===5?"Show my schools →":"Next →";paint();save();$("#quiz").scrollIntoView({behavior:"smooth",block:"start"})}
+function finish(){if(A.num.gpa==null){toast("Add a GPA first (section 1) so we can set the bands.");go(0);return}render();$("#results").classList.add("show");$("#results").scrollIntoView({behavior:"smooth"})}
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2400)}
+function rng(id){return A.range[id]!=null?A.range[id]:+document.getElementById(id).defaultValue}
+
+// ---------- scoring ----------
+function studentSAT(){const s=A.num.sat,a=A.num.act;if(A.single.testplan==="none")return null;const fromAct=a?ACT2SAT[Math.round(a)]:null;if(s&&fromAct)return Math.max(s,fromAct);return s||fromAct||null}
+function band(c){
+  const [name,st,sz,set,typ,div,s25,s75,gpa,acc]=c;
+  const g=A.num.gpa, sat=studentSAT(), rigor=+A.single.rigor||2, rank=A.single.rank;
+  let pts=0;
+  // GPA
+  if(g>=gpa+0.05)pts+=1;else if(g<gpa-0.35)pts-=2;else if(g<gpa-0.15)pts-=1;
+  // tests (skip test-blind schools or no scores)
+  if(s25&&sat){ if(sat>=s75)pts+=1; else if(sat<s25-60)pts-=2; else if(sat<s25)pts-=1; }
+  else if(s25&&!sat&&A.single.testplan!=="none"&&acc<40)pts-=1; // selective + no scores
+  // rigor & rank
+  if(rigor>=4)pts+=1;else if(rigor<=1)pts-=1;
+  if(rank==="top5")pts+=1;else if(rank==="top50")pts-=1;
+  // selectivity
+  if(acc>=80)pts+=2;else if(acc>=60)pts+=1;else if(acc<35)pts-=1;
+  if(acc<20)return "reach";
+  if(acc<35&&pts<2)return "reach";
+  if(pts>=2)return "likely";
+  if(pts<=-1)return "reach";
+  return "match";
+}
+function fit(c){
+  const [name,st,sz,set,typ,div,s25,s75,gpa,acc,cost,maj,vibe]=c;
+  const why=[],warn=[];let score=50,wsum=0;
+  const add=(w,v,msg,bad)=>{wsum+=w;score+=w*v;if(msg&&v>0)why.push(msg);if(bad&&v<0)warn.push(bad)};
+  const has=t=>vibe.includes(t);
+  // majors
+  const M=A.multi.majors||new Set();
+  if(M.size&&!M.has("undecided")){const hits=[...M].filter(m=>maj.includes(m));if(hits.length)add(4,1,hits.map(h=>"strong in "+MAJOR_NAME[h]).join(", "));else add(4,-1,null,"not known for your fields")}
+  else add(2,maj.length>=5?1:0,maj.length>=5?"broad range of majors":null);
+  // sports
+  const sl=A.single.sportlevel;
+  if(sl==="d1"){const fb=(A.multi.sports||new Set()).has("football");if(fb)add(5,has("fbs")?1:(has("fcs")?0.5:-1),has("fbs")?"FBS football":(has("fcs")?"FCS football":null),has("fbs")||has("fcs")?null:"no D1 football");else add(5,div==="D1"?1:-1,div==="D1"?"NCAA Division I":null,div==="D1"?null:"no D1 athletics")}
+  else if(sl==="d2")add(4,div==="D2"?1:(div==="D3"||div==="none"?-0.5:0),div==="D2"?"NCAA Division II":null,div==="D2"?null:"not D2");
+  else if(sl==="d3")add(4,div==="D3"?1:(div==="D1"?-0.5:0),div==="D3"?"D3 varsity — walk-on friendly":null,div==="D1"?"D1 rosters are hard to crack":null);
+  else if(sl==="club")add(1,sz!=="S"?1:0,null);
+  const spirit=rng("spirit");if(spirit>=3)add(spirit-1,has("spirit")?1:(div==="D1"?0:-1),has("spirit")?"big-game atmosphere":null,has("spirit")||div==="D1"?null:"quiet on game days");else if(spirit<=1&&has("spirit"))add(1,-0.5,null,"sports-heavy culture");
+  const out=rng("outdoors");if(out>=3)add(out-1,has("outdoors")?1:-0.5,has("outdoors")?"mountains / trails close":null,has("outdoors")?null:"not an outdoors campus");
+  // activities
+  const acts=A.multi.acts||new Set(),aw=rng("actweight");
+  if(aw>0&&acts.size){
+    const map={music:["arts","perf"],theater:["arts","perf"],visual:["arts"],stugov:["service","poli"],debate:["poli","seminar"],robotics:["techy"],research:["research"],journalism:["comm","arts"],business:["entrepreneur","bus"],cultural:["faith","diverse","service"],outdoor:["outdoors"],esports:["techy"]};
+    let hit=0;acts.forEach(a=>{if(map[a].some(t=>has(t)||maj.includes(t)))hit++});
+    const frac=hit/acts.size;add(aw,frac>=0.5?1:(frac>0?0.3:-0.5),frac>=0.5?"scene for your activities":null,frac===0?"thin on your activities":null);
+  }
+  const greek=rng("greek");if(greek>=3)add(greek-1,has("greek")?1:-0.5,has("greek")?"active Greek / social scene":null);else if(greek===0&&has("greek"))add(2,-1,null,"Greek-dominated social life");
+  // service & faith
+  const sw=rng("svcweight");if(sw>=2)add(sw,has("service")?1:0,has("service")?"service culture":null);
+  const f=A.single.faith;if(f==="want")add(4,has("faith")?1:-0.5,has("faith")?"faith-affiliated":null,has("faith")?null:"secular campus");else if(f==="avoid"&&has("faith"))add(4,-1,null,"religiously affiliated");
+  // interests
+  const learn=A.single.learn;if(learn==="seminar")add(3,sz==="S"||has("seminar")?1:(sz==="L"?-1:0),sz==="S"||has("seminar")?"small classes, professors who know you":null,sz==="L"?"large lecture classes early on":null);
+  if(learn==="lecture")add(2,sz==="L"?1:(sz==="S"?-0.5:0),sz==="L"?"huge menu of courses and clubs":null);
+  const wants=A.multi.wants||new Set();wants.forEach(w=>{const t={research:"research",coop:"coop",abroad:"abroad",honors:"honors",preprof:"preprof",entrepreneur:"entrepreneur"}[w];add(2,has(t)?1:0,has(t)?VIBE_NAME[t]:null)});
+  const rw=rng("rigorweight");if(rw>=3)add(rw-1,acc<=25?1:(acc>=70?-0.7:0),acc<=25?"academically intense peers":null,acc>=70?"less selective peer group":null);else if(rw<=1&&acc<=15)add(1,-0.5,null,"high-pressure culture");
+  // fit & logistics
+  const home=A.text.home,hr=regionOf(home),sr=regionOf(st),dist=A.single.distance;
+  if(home&&dist==="close")add(4,sr===hr?1:-1,sr===hr?"close to home":null,"far from home");
+  if(home&&dist==="far")add(3,sr!==hr?1:-0.5,sr!==hr?"a new part of the country":null);
+  const R=A.multi.regions||new Set();if(R.size)add(4,R.has(sr)?1:-1,null,R.has(sr)?null:"outside your regions");
+  const S=A.multi.size||new Set();if(S.size)add(4,S.has(sz)?1:-1,S.has(sz)?({S:"small school",M:"mid-sized",L:"big university"})[sz]:null,S.has(sz)?null:"wrong size for you");
+  const T=A.multi.setting||new Set();if(T.size)add(3,T.has(set)?1:-0.7,T.has(set)?set+" setting":null,T.has(set)?null:set+" setting");
+  const ty=A.single.type;if(ty==="pub"||ty==="priv")add(3,typ===ty?1:-1,null,typ===ty?null:(typ==="pub"?"public":"private"));
+  const costPref=A.single.cost;const inState=typ==="pub"&&home===st;const sticker=typ==="pub"?(inState?cost[0]:cost[1]):cost;
+  if(costPref==="tight")add(4,inState?1:(sticker<=50?0.5:(sticker>=80?-1:-0.3)),inState?"in-state tuition":(sticker<=50?"lower sticker price":null),sticker>=80?"$"+sticker+"k sticker":null);
+  if(costPref==="aid")add(4,has("need")?1:(typ==="pub"&&inState?0.5:(sticker>=85?-0.5:0)),has("need")?"meets 100% of demonstrated need":null);
+  const dv=rng("diversity");if(dv>=3)add(dv-1,has("diverse")||has("city")?1:(set==="rural"?-0.7:0),has("diverse")?"diverse student body":(has("city")?"city culture":null),set==="rural"?"small, rural, less diverse":null);
+  // spike text
+  const spike=(A.text.spike||"").toLowerCase();if(spike){const kw=[["music|band|orchestra|cello|violin|choir|sing","perf"],["theat|drama|dance|act","perf"],["film|photo|art|design|draw|paint","arts"],["robot|code|coding|hack|program|software","techy"],["research|lab|science","research"],["paper|newspaper|journal|editor|podcast|writing","comm"],["debate|model un|mock trial|government|politic","poli"],["business|startup|deca|entrepreneur|founder","entrepreneur"],["climb|ski|hike|outdoor|backpack","outdoors"],["volunteer|service|tutor|mentor","service"]];kw.forEach(([re,t])=>{if(new RegExp(re).test(spike)&&(has(t)||maj.includes(t)))add(2,1,"fits your spike")})}
+  const norm=wsum?Math.round(50+ (score-50)/(wsum*1.0)*45):50;
+  return {score:Math.max(5,Math.min(99,norm)),why:[...new Set(why)].slice(0,4),warn:[...new Set(warn)].slice(0,2),sticker,inState};
+}
+
+// ---------- render ----------
+function render(){
+  const rows=C.map((c,i)=>({c,i,b:band(c),f:fit(c)})).filter(r=>{
+    const [n,st,sz,set,typ,div]=r.c;
+    if(filter==="d1"&&div!=="D1")return false;if(filter==="fb30"&&!((r.c[12].includes("fbs")||r.c[12].includes("fcs"))&&r.c[9]<=50))return false;if(filter==="small"&&sz!=="S")return false;if(filter==="public"&&typ!=="pub")return false;if(filter==="picked"&&!picks.has(r.i))return false;return true});
+  rows.sort((a,b)=>b.f.score-a.f.score);
+  const by={reach:[],match:[],likely:[]};rows.forEach(r=>by[r.b].push(r));
+  for(const k of ["reach","match","likely"]){
+    const col=$("#col"+k[0].toUpperCase()+k.slice(1));const lim=expanded[k]?999:8;const list=by[k];
+    $("#n"+k[0].toUpperCase()+k.slice(1)).textContent=list.length+" schools";
+    if(!list.length){col.innerHTML='<div class="empty">Nothing lands here with the current filter. Loosen a preference or clear the filter.</div>';continue}
+    col.innerHTML=list.slice(0,lim).map(r=>card(r)).join("")+(list.length>lim?`<button type="button" class="btn ghost more" data-more="${k}">Show ${list.length-lim} more</button>`:"");
+  }
+  $$("[data-more]").forEach(b=>b.addEventListener("click",()=>{expanded[b.dataset.more]=true;render()}));
+  $$(".pick").forEach(b=>b.addEventListener("click",()=>{const i=+b.dataset.i;picks.has(i)?picks.delete(i):picks.add(i);save();render()}));
+  renderProfile();renderTour();
+}
+function card(r){const [name,st,sz,set,typ,div,s25,s75,gpa,acc]=r.c,f=r.f;
+  const sizeName={S:"Small",M:"Mid-size",L:"Large"}[sz];
+  const test=s25?`SAT ${s25}–${s75}`:"test-blind";
+  const cost=f.sticker===0?"tuition-free · service commitment":typ==="pub"?(f.inState?`$${f.sticker}k in-state`:`$${f.sticker}k out-of-state`):`$${f.sticker}k sticker`;
+  return `<article class="card ${picks.has(r.i)?"picked":""}">
+    <div class="head"><div><h3>${name}</h3><div class="loc">${st} · ${sizeName} ${typ==="pub"?"public":"private"} · ${set} · ${div==="none"?"no NCAA":div}</div></div>
+    <div class="fit"><b>${f.score}</b><span>fit</span></div></div>
+    <div class="fitbar"><i style="width:${f.score}%"></i></div>
+    <div class="facts"><span>${test}</span><span>GPA ~${gpa.toFixed(2)}</span><span>admits ${acc}%</span><span>${cost}</span></div>
+    <div class="tags">${f.why.map(w=>`<span class="tag hit">${w}</span>`).join("")}${r.c[12].includes("fbs")?'<span class="tag">FBS football</span>':(r.c[12].includes("fcs")?'<span class="tag">FCS football</span>':"")}${f.warn.map(w=>`<span class="tag warn">${w}</span>`).join("")}</div>
+    <div class="foot"><span class="why">${bandNote(r)}</span><button type="button" class="pick" data-i="${r.i}" aria-pressed="${picks.has(r.i)}">${picks.has(r.i)?"✓ On tour list":"+ Tour"}</button></div>
+  </article>`}
+function bandNote(r){const [n,st,sz,set,typ,div,s25,s75,gpa,acc]=r.c,sat=studentSAT(),g=A.num.gpa;
+  if(!s25)return g>=gpa?`Test-blind; your GPA is at or above their ~${gpa.toFixed(2)}`:`Test-blind; GPA runs below their ~${gpa.toFixed(2)}`;
+  if(!sat)return `No scores on file; bands use GPA (${g.toFixed(2)} vs ~${gpa.toFixed(2)}) and rigor`;
+  if(sat>=s75)return `Your ${sat} is above their 75th percentile`;if(sat>=s25)return `Your ${sat} sits inside their middle 50%`;return `Your ${sat} is below their 25th percentile (${s25})`}
+function renderProfile(){
+  const g=A.num.gpa,sat=studentSAT(),M=[...(A.multi.majors||[])],sl=A.single.sportlevel;
+  $("#profTitle").textContent=sat?`${g.toFixed(2)} GPA · ${sat} SAT-equivalent`:`${g.toFixed(2)} GPA · test-optional applicant`;
+  const bits=[];if(M.length)bits.push(M.includes("undecided")?"undecided on major":M.map(m=>MAJOR_NAME[m]).join(", "));
+  if(sl&&sl!=="no")bits.push({d1:"aiming for D1 recruitment",d2:"D2 / NAIA athlete",d3:"D3 varsity athlete",club:"club & intramural sports"}[sl]);
+  if(A.text.spike)bits.push("spike: "+A.text.spike);
+  $("#profNote").textContent=bits.length?bits.join(" · "):"Fill in more sections to sharpen the matches.";
+  const counts={reach:0,match:0,likely:0};C.forEach(c=>counts[band(c)]++);
+  $("#profStats").innerHTML=`<div class="stat"><b>${C.length}</b><span>schools scored</span></div><div class="stat"><b style="color:var(--reach)">${counts.reach}</b><span>reach</span></div><div class="stat"><b style="color:var(--match)">${counts.match}</b><span>match</span></div><div class="stat"><b style="color:var(--likely)">${counts.likely}</b><span>likely</span></div>`;
+}
+function renderTour(){
+  const list=[...picks].map(i=>({i,c:C[i],b:band(C[i]),f:fit(C[i])}));
+  const n={reach:0,match:0,likely:0};list.forEach(r=>n[r.b]++);const tot=list.length||1;
+  const bar=$("#balBar");bar.children[0].style.width=(n.reach/tot*100)+"%";bar.children[1].style.width=(n.match/tot*100)+"%";bar.children[2].style.width=(n.likely/tot*100)+"%";
+  $("#balR").textContent=n.reach+" reach";$("#balM").textContent=n.match+" match";$("#balL").textContent=n.likely+" likely";
+  let msg="";if(!list.length)msg="Nothing picked yet.";else if(n.likely===0)msg="Add at least one likely school so the trip isn't all long shots.";else if(n.match<2)msg="Most tours should be matches; add a couple more.";else if(n.reach>n.match)msg="Reach-heavy. Swap one reach for a match.";else msg="Balanced list. Nice.";$("#balMsg").textContent=msg;
+  $("#tourCount").textContent=list.length?`${list.length} school${list.length>1?"s":""} · ${n.reach}R / ${n.match}M / ${n.likely}L`:"No schools picked yet";
+  // trips
+  const groups={};list.forEach(r=>{const k=regionOf(r.c[1]);(groups[k]=groups[k]||[]).push(r)});
+  const order=["W","SW","MW","S","NE"];
+  $("#trips").innerHTML=list.length?order.filter(k=>groups[k]).map(k=>{const g=groups[k].sort((a,b)=>a.c[1].localeCompare(b.c[1]));const states=[...new Set(g.map(r=>r.c[1]))];
+    return `<div class="trip"><h3>${REGION_NAME[k]} <small>${g.length} stop${g.length>1?"s":""} · ${states.join(", ")}${g.length>1?" · ~"+Math.ceil(g.length*1.5)+" days":""}</small></h3><ul>${g.map(r=>`<li><span>${r.c[0]} <span class="pill ${r.b}">${r.b}</span></span><button type="button" class="x" data-i="${r.i}" aria-label="Remove">×</button></li>`).join("")}</ul></div>`}).join(""):'<div class="empty">Tap "+ Tour" on any card to start building trips.</div>';
+  $$("#trips .x").forEach(b=>b.addEventListener("click",()=>{picks.delete(+b.dataset.i);save();render()}));
+  // tailored questions
+  const q=["Sit in on a class in a department you care about, not just the info session.","Ask a current student what they'd change about the school and what they did last weekend.","Eat in the dining hall and walk through a first-year dorm.","Ask admissions how they use test scores and whether your GPA is recalculated."];
+  const M=A.multi.majors||new Set(),sl=A.single.sportlevel,wants=A.multi.wants||new Set();
+  if(M.has("premed")||wants.has("preprof"))q.push("Ask the pre-health office: how many applicants get committee letters, and what's the med-school acceptance rate for those who apply?");
+  if(M.has("eng")||M.has("cs"))q.push("Ask whether you're admitted directly to the major or must apply in after first year, and how competitive that is.");
+  if(M.has("bus"))q.push("Ask how many students get into the business school as first-years versus transferring in.");
+  if(M.has("arts")||M.has("perf"))q.push("Ask about portfolio / audition requirements and whether studios and practice rooms are open to non-majors.");
+  if(M.has("undecided")||!M.size)q.push("Ask how easy it is to change majors across schools within the university, and when you must declare.");
+  if(sl==="d1"||sl==="d2"||sl==="d3")q.push("Email the coach before the visit and ask for 15 minutes; ask about roster size, typical recruit stats and how athletes handle travel with classes.");
+  if(sl==="club")q.push("Find the club sports office: how competitive are tryouts and what does the season look like?");
+  if(wants.has("research"))q.push("Ask what share of undergrads do research with faculty, and when students typically start.");
+  if(wants.has("coop"))q.push("Ask where last year's co-op students worked and whether co-ops delay graduation.");
+  if(wants.has("abroad"))q.push("Ask what percentage of students study abroad and whether financial aid travels with you.");
+  if(wants.has("honors"))q.push("Ask what the honors college actually adds: housing, priority registration, smaller sections, thesis?");
+  if(rng("svcweight")>=3)q.push("Ask about the community-engagement center: service-learning courses, bonner-style scholarships, alternative breaks.");
+  if(A.single.cost==="tight")q.push("Ask about merit scholarships: cutoffs, whether they stack, and whether they renew automatically.");
+  if(A.single.cost==="aid")q.push("Run the net-price calculator before you go and ask financial aid to walk through it with you.");
+  if(rng("greek")>=3)q.push("Ask what percentage of students go Greek and what social life looks like for those who don't.");
+  if(rng("greek")===0)q.push("Ask what weekends look like for students who skip Greek life.");
+  if(rng("outdoors")>=3)q.push("Ask about the outdoor program: gear rental, trip leaders, how far the trailhead or lift is.");
+  $("#asks").innerHTML=q.map(x=>`<li>${x}</li>`).join("");
+}
+function copyTour(){
+  const list=[...picks].map(i=>({c:C[i],b:band(C[i])}));
+  if(!list.length){toast("Pick some schools first");return}
+  const txt="Campus tour list\n"+list.map(r=>`• ${r.c[0]} (${r.c[1]}) — ${r.b}`).join("\n");
+  const done=()=>toast("Copied "+list.length+" schools");
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done))}else fallbackCopy(txt,done);
+}
+function fallbackCopy(t,done){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done()}catch(e){toast("Select and copy from the planner")}ta.remove()}
+
+// ---------- export: submission + PDF ----------
+const LABEL={rigor:{1:"Mostly standard",2:"Some honors",3:"Several AP/IB/DE",4:"Most rigorous"},rank:{top5:"Top 5%",top10:"Top 10%",top25:"Top 25%",top50:"Top half",none:"Not ranked"},testplan:{submit:"Will submit scores",maybe:"Submit where it helps",none:"Test-optional / not testing"},sportlevel:{d1:"D1 recruit",d2:"D2 / NAIA",d3:"D3 varsity",club:"Club / intramural",no:"Not playing"},svchours:{0:"Under 20 hrs",1:"20-60 hrs",2:"60-150 hrs",3:"150+ hrs"},faith:{want:"Wants faith-affiliated",either:"Either",avoid:"Prefers secular"},learn:{seminar:"Small discussion classes",mix:"A mix",lecture:"Big lectures fine"},distance:{close:"Close to home",any:"Anywhere",far:"Somewhere new"},type:{pub:"Public",priv:"Private",either:"Either"},cost:{tight:"Sticker price matters",aid:"Need-based aid",open:"Cost not deciding"}};
+const RANGE_LABEL={spirit:"School spirit",outdoors:"Outdoors access",actweight:"Continue activities",greek:"Greek / social scene",svcweight:"Service culture",rigorweight:"Academic intensity",diversity:"Diversity & city culture"};
+function profileRows(){
+  const rows=[];const S=A.single,M=A.multi,N=A.num,T=A.text;
+  rows.push(["Student",T.sname||""],["Email",T.semail||""],["Grad year",N.sgrad||""],["Home state",T.home||""]);
+  rows.push(["Unweighted GPA",N.gpa!=null?N.gpa:""],["Weighted GPA",N.wgpa!=null?N.wgpa:""],["SAT",N.sat||""],["ACT",N.act||""]);
+  for(const k in LABEL)rows.push([k==="svchours"?"Service hours":k[0].toUpperCase()+k.slice(1),S[k]!=null?LABEL[k][S[k]]||S[k]:""]);
+  const ml=(k,map)=>[...(M[k]||[])].map(v=>map?map[v]||v:v).join(", ");
+  rows.push(["Sports",ml("sports")],["Activities",ml("acts")],["Spike",T.spike||""],["Service type",ml("svctype")],["Majors",ml("majors",MAJOR_NAME)],["Wants",ml("wants")],["Regions",ml("regions",REGION_NAME)],["Size",ml("size")],["Setting",ml("setting")]);
+  for(const k in RANGE_LABEL)rows.push([RANGE_LABEL[k],SCALE[rng(k)]]);
+  return rows;
+}
+function tourRows(){return [...picks].map(i=>({c:C[i],b:band(C[i]),f:fit(C[i])}))}
+function topRows(){const rows=C.map((c,i)=>({c,i,b:band(c),f:fit(c)})).sort((a,b)=>b.f.score-a.f.score);const by={reach:[],match:[],likely:[]};rows.forEach(r=>{if(by[r.b].length<8)by[r.b].push(r)});return by}
+function snapshot(){return {app:"campus-tour-planner",version:1,savedAt:new Date().toISOString(),answers:{single:A.single,multi:Object.fromEntries(Object.entries(A.multi).map(([k,v])=>[k,[...v]])),num:A.num,range:A.range,text:A.text},picks:[...picks]}}
+function saveFile(){
+  if(A.num.gpa==null){toast("Complete the questionnaire first");return}
+  const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=((A.text.sname||"student").replace(/[^\w]+/g,"-"))+"-college-answers.json";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+  $("#saveStatus").textContent="Saved. Keep the .json file; load it here on any device to pick up where you left off.";
+}
+function loadFile(e){
+  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s.app!=="campus-tour-planner")throw 0;
+    A.single=s.answers.single||{};A.multi={};for(const k in s.answers.multi)A.multi[k]=new Set(s.answers.multi[k]);$$("[data-multi]").forEach(g=>{A.multi[g.dataset.multi]=A.multi[g.dataset.multi]||new Set()});
+    A.num=s.answers.num||{};A.range=s.answers.range||{};A.text=s.answers.text||{};picks=new Set(s.picks||[]);
+    $$("input[type=number],input[type=text]").forEach(i=>i.value="");hydrate();save();render();$("#results").classList.add("show");toast("Loaded answers"+(A.text.sname?" for "+A.text.sname:""));
+  }catch(err){toast("That file isn't a saved answers file from this planner")}e.target.value=""};
+  rd.readAsText(f);
+}
+function downloadPDF(){
+  if(A.num.gpa==null){toast("Complete the questionnaire first");return}
+  if(!window.jspdf){toast("PDF library didn't load; check your connection");return}
+  const {jsPDF}=window.jspdf;const d=new jsPDF({unit:"pt",format:"letter"});const W=612,L=54,R=558;let y=0;
+  const font=(s,b)=>{d.setFont("helvetica",b?"bold":"normal");d.setFontSize(s)};
+  const page=()=>{d.addPage();y=54};
+  const need=h=>{if(y+h>740)page()};
+  const text=(t,s,b,gap)=>{font(s,b);const lines=d.splitTextToSize(String(t),R-L);need(lines.length*s*1.3);d.text(lines,L,y);y+=lines.length*s*1.3+(gap==null?6:gap)};
+  const h2=t=>{y+=10;need(30);font(13,true);d.setTextColor(31,95,63);d.text(t.toUpperCase(),L,y);d.setDrawColor(31,95,63);d.line(L,y+5,R,y+5);d.setTextColor(23,32,27);y+=22};
+  const kv=(k,v)=>{if(v===""||v==null)return;font(10,true);need(14);d.text(k,L,y);font(10,false);const lines=d.splitTextToSize(String(v),R-L-150);d.text(lines,L+150,y);y+=Math.max(1,lines.length)*13};
+  y=60;font(22,true);d.text(CONFIG.orgName,L,y);y+=20;font(11,false);d.setTextColor(92,106,98);d.text("Campus tour plan · generated "+new Date().toLocaleDateString(),L,y);d.setTextColor(23,32,27);y+=10;
+  const name=A.text.sname||"Student";
+  y+=18;font(16,true);d.text(name+(A.num.sgrad?" · Class of "+A.num.sgrad:""),L,y);y+=8;
+  h2("Profile");profileRows().forEach(([k,v])=>{if(!["Student","Email"].includes(k))kv(k,v)});
+  const tr=tourRows();const n={reach:0,match:0,likely:0};tr.forEach(r=>n[r.b]++);
+  h2("Tour list ("+tr.length+" schools · "+n.reach+" reach / "+n.match+" match / "+n.likely+" likely)");
+  if(!tr.length)text("No schools picked yet. Return to the planner, tap + Tour on cards, and download again.",10,false);
+  const groups={};tr.forEach(r=>{const k=regionOf(r.c[1]);(groups[k]=groups[k]||[]).push(r)});
+  ["W","SW","MW","S","NE"].filter(k=>groups[k]).forEach(k=>{text(REGION_NAME[k]+" trip · "+groups[k].length+" stop"+(groups[k].length>1?"s":""),11,true,4);
+    groups[k].forEach(r=>{const [nm,st,sz,set,typ,div,s25,s75,gpa,acc]=r.c;const f=r.f;const cost=f.sticker===0?"tuition-free":(typ==="pub"?"$"+f.sticker+"k "+(f.inState?"in-state":"out-of-state"):"$"+f.sticker+"k sticker");
+      need(48);font(11,true);d.text(nm,L+12,y);font(10,false);d.text(r.b.toUpperCase()+" · fit "+f.score,R,y,{align:"right"});y+=13;
+      font(9,false);d.setTextColor(92,106,98);d.text(`${st} · ${({S:"Small",M:"Mid-size",L:"Large"})[sz]} ${typ==="pub"?"public":"private"} · ${set} · ${div==="none"?"no NCAA":div} · ${s25?"SAT "+s25+"–"+s75:"test-blind"} · GPA ~${gpa.toFixed(2)} · admits ${acc}% · ${cost}`,L+12,y);y+=12;
+      const why=[...f.why.map(w=>"+ "+w),...f.warn.map(w=>"– "+w)].join("   ");if(why){const ls=d.splitTextToSize(why,R-L-12);d.text(ls,L+12,y);y+=ls.length*11}d.setTextColor(23,32,27);y+=6;});y+=4;});
+  h2("Questions to ask on every tour");[...document.querySelectorAll("#asks li")].forEach((li,i)=>text((i+1)+". "+li.textContent,10,false,3));
+  const top=topRows();h2("Other schools worth a look");
+  [["Likely",top.likely],["Match",top.match],["Reach",top.reach]].forEach(([lab,list])=>{const rest=list.filter(r=>!picks.has(r.i));if(!rest.length)return;text(lab+": "+rest.map(r=>r.c[0]+" ("+r.f.score+")").join(", "),10,false,4)});
+  y+=10;font(8,false);d.setTextColor(120,130,124);text("Admissions figures are approximate, rounded from recent Common Data Set publications. Confirm on each school's admissions page. Fit scores reflect this student's stated preferences only.",8,false);
+  d.save((name.replace(/[^\w]+/g,"-")||"student")+"-campus-tour-plan.pdf");
+}
+
+function loadSample(){
+  Object.assign(A.single,{rigor:"3",rank:"top10",testplan:"maybe",sportlevel:"d3",svchours:"2",faith:"either",learn:"mix",distance:"any",type:"either",cost:"aid"});
+  A.multi.sports=new Set(["soccer","track"]);A.multi.acts=new Set(["robotics","journalism","outdoor"]);A.multi.svctype=new Set(["tutor","env"]);A.multi.majors=new Set(["cs","env"]);A.multi.wants=new Set(["research","abroad"]);A.multi.regions=new Set();A.multi.size=new Set(["S","M"]);A.multi.setting=new Set(["town","suburban"]);
+  A.num={gpa:3.78,wgpa:4.25,sat:1390,act:null};A.range={spirit:1,outdoors:4,actweight:3,greek:1,svcweight:2,rigorweight:3,diversity:2};A.text={home:"CA",spike:"robotics team captain"};
+  hydrate();toast("Sample student loaded: 3.78 GPA, 1390 SAT, CS + environment, D3 soccer");finish();
+}
+
+load();initForm();hydrate();go(step);
+if(A.num.gpa!=null&&picks.size){render();$("#results").classList.add("show")}
+</script>
+
+</body>
+</html>
