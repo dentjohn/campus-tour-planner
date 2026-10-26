@@ -2,7 +2,7 @@
 
 A single-file web app that helps a high school student decide which colleges to tour.
 Answer six short sections (academics, sports, activities, service, interests, campus fit)
-and get a Reach / Match / Likely board of ~175 colleges, a tour list grouped into trips,
+and get a Reach / Match / Likely board of ~385 colleges, including every private college graded B or better in the 2026 Forbes College Financial Grades, a tour list grouped into trips,
 tailored questions to ask on each visit, and a downloadable PDF report.
 
 - `index.html` is the whole app. No build step, no server.
